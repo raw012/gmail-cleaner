@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Gmail Cleaner</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 13px;
+      width: 500px;
+      background: #fff;
+      color: #222;
+    }
+
+    /* ── Header ── */
+    #header {
+      padding: 11px 16px;
+      border-bottom: 1px solid #e0e0e0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    #header h1 { font-size: 14px; font-weight: 600; letter-spacing: 0.1px; }
+
+    /* ── Auth view ── */
+    #auth-view {
+      padding: 40px 20px;
+      text-align: center;
+    }
+    #auth-view p { color: #555; margin-bottom: 16px; line-height: 1.5; }
+
+    /* ── Sections ── */
+    .section { padding: 12px 16px; border-bottom: 1px solid #e8e8e8; }
+
+    /* ── Filter grid ── */
+    .filter-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .filter-item { display: flex; flex-direction: column; gap: 3px; }
+    .filter-item.full { grid-column: span 2; }
+    label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #666;
+    }
+    input[type="text"],
+    input[type="date"],
+    select {
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 5px 8px;
+      font-size: 13px;
+      outline: none;
+      width: 100%;
+      background: #fff;
+      color: #222;
+    }
+    input:focus, select:focus { border-color: #1a73e8; box-shadow: 0 0 0 2px #e8f0fe; }
+
+    /* ── Buttons ── */
+    .btn {
+      border: none;
+      border-radius: 4px;
+      padding: 6px 14px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1.4;
+    }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-primary { background: #1a73e8; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #1558b0; }
+    .btn-danger  { background: #d93025; color: #fff; }
+    .btn-danger:hover:not(:disabled)  { background: #b31c12; }
+    .btn-ghost {
+      background: none;
+      border: 1px solid #ccc;
+      color: #444;
+      padding: 3px 9px;
+      font-size: 12px;
+    }
+    .btn-ghost:hover:not(:disabled) { background: #f5f5f5; }
+    .btn-link {
+      background: none;
+      border: none;
+      color: #1a73e8;
+      padding: 4px 6px;
+      font-size: 12px;
+    }
+    .btn-link:hover:not(:disabled) { background: #eef3fd; border-radius: 3px; }
+
+    #search-btn { width: 100%; margin-top: 10px; }
+
+    /* ── Loading ── */
+    #loading {
+      padding: 20px;
+      text-align: center;
+      color: #666;
+    }
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid #e0e0e0;
+      border-top-color: #1a73e8;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Results ── */
+    #results-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    #results-count { font-size: 12px; color: #555; }
+    #results-actions { display: flex; gap: 2px; }
+
+    #email-list {
+      max-height: 260px;
+      overflow-y: auto;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+    }
+
+    .email-item {
+      display: flex;
+      align-items: center;
+      padding: 7px 10px;
+      border-bottom: 1px solid #f0f0f0;
+      cursor: pointer;
+      gap: 8px;
+      transition: background 0.1s;
+    }
+    .email-item:last-child { border-bottom: none; }
+    .email-item:hover  { background: #f8f9fa; }
+    .email-item.selected { background: #e8f0fe; }
+
+    .email-item input[type="checkbox"] {
+      flex-shrink: 0;
+      cursor: pointer;
+      width: 14px;
+      height: 14px;
+    }
+    .email-body { flex: 1; min-width: 0; }
+    .email-from {
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 12px;
+    }
+    .email-subject {
+      color: #555;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 12px;
+      margin-top: 1px;
+    }
+    .email-date {
+      font-size: 11px;
+      color: #888;
+      flex-shrink: 0;
+      white-space: nowrap;
+      margin-left: 6px;
+    }
+
+    #delete-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 10px;
+    }
+    #selected-count { font-size: 12px; color: #555; }
+
+    .empty-state {
+      padding: 28px;
+      text-align: center;
+      color: #888;
+      font-size: 13px;
+    }
+
+    /* ── Status bar ── */
+    #status-bar {
+      padding: 7px 16px;
+      min-height: 28px;
+      font-size: 12px;
+      color: #555;
+      background: #fafafa;
+      border-top: 1px solid #e8e8e8;
+    }
+    .status-error   { color: #d93025 !important; }
+    .status-success { color: #188038 !important; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: 10px;
+      left: 12px;
+      right: 12px;
+      background: #323232;
+      color: #fff;
+      border-radius: 5px;
+      padding: 10px 12px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      z-index: 200;
+      overflow: hidden;
+    }
+    #toast-msg { flex: 1; }
+    #undo-btn {
+      background: none;
+      border: none;
+      color: #8ab4f8;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 12px;
+      padding: 0;
+      flex-shrink: 0;
+    }
+    #undo-btn:hover { color: #aaccff; }
+    #timer-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 3px;
+      background: #8ab4f8;
+      border-radius: 0 0 5px 5px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="header">
+  <h1>Gmail Cleaner</h1>
+  <button class="btn btn-ghost" id="sign-out-btn" style="display:none">Sign out</button>
+</div>
+
+<!-- Not signed in -->
+<div id="auth-view">
+  <p>Connect your Google account to preview and bulk-delete emails by sender, subject, date, or label.</p>
+  <button class="btn btn-primary" id="sign-in-btn">Sign in with Google</button>
+</div>
+
+<!-- Main UI (hidden until signed in) -->
+<div id="main-view" style="display:none">
+
+  <!-- Filters -->
+  <div class="section">
+    <div class="filter-grid">
+      <div class="filter-item">
+        <label for="filter-from">From</label>
+        <input type="text" id="filter-from" placeholder="sender@example.com">
+      </div>
+      <div class="filter-item">
+        <label for="filter-subject">Subject contains</label>
+        <input type="text" id="filter-subject" placeholder="keyword">
+      </div>
+      <div class="filter-item">
+        <label for="filter-date-from">Date from</label>
+        <input type="date" id="filter-date-from">
+      </div>
+      <div class="filter-item">
+        <label for="filter-date-to">Date to</label>
+        <input type="date" id="filter-date-to">
+      </div>
+      <div class="filter-item full">
+        <label for="filter-label">Label</label>
+        <select id="filter-label">
+          <option value="">— Any label —</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="search-btn">Preview Emails</button>
+  </div>
+
+  <!-- Loading indicator -->
+  <div id="loading" style="display:none">
+    <span class="spinner"></span>Searching…
+  </div>
+
+  <!-- Results -->
+  <div id="results-section" class="section" style="display:none">
+    <div id="results-header">
+      <span id="results-count"></span>
+      <div id="results-actions">
+        <button class="btn btn-link" id="select-all-btn">Select all</button>
+        <button class="btn btn-link" id="deselect-all-btn">Deselect all</button>
+      </div>
+    </div>
+    <div id="email-list"></div>
+    <div id="delete-row">
+      <span id="selected-count">0 selected</span>
+      <button class="btn btn-danger" id="delete-btn" disabled>Delete Selected</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Status bar -->
+<div id="status-bar"></div>
+
+<!-- Undo toast -->
+<div id="toast">
+  <span id="toast-msg"></span>
+  <button id="undo-btn">UNDO</button>
+  <div id="timer-bar" style="width:100%"></div>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
